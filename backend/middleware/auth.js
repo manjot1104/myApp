@@ -1,8 +1,5 @@
 const jwt = require("jsonwebtoken");
 
-// Make sure you have JWT_SECRET in your .env
-// e.g., JWT_SECRET=your_secret_key
-
 module.exports = function (req, res, next) {
   try {
     const authHeader = req.headers.authorization;

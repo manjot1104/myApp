@@ -73,7 +73,6 @@ router.get("/history", auth, async (req, res) => {
         .populate("user", "name email") // Retailer ka naam/email
         .sort({ createdAt: -1 });
 
-      // Wholesaler ke orders me sirf wahi orders rakhna jisme kam se kam ek product match hua ho
       orders = orders.filter(order =>
         order.items.some(item => item.product_id !== null)
       );

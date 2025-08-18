@@ -1,4 +1,3 @@
-// screens/wholesaler/ProductFormScreen.js
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -95,7 +94,7 @@ export default function ProductFormScreen({ route, navigation }) {
         data: formData,
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data", // Important!
+          "Content-Type": "multipart/form-data",
         },
       });
 

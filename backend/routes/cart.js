@@ -1,7 +1,7 @@
 const express =require("express");
 const Cart =require("../models/Cart.js");
-const auth =require("../middleware/auth.js"); // your JWT auth middleware
-const Product = require("../models/product.js"); // make sure the path is correct
+const auth =require("../middleware/auth.js"); 
+const Product = require("../models/product.js");
 
 const router = express.Router();
 
@@ -9,7 +9,7 @@ const router = express.Router();
 router.post("/add", auth, async (req, res) => {
   try {
     const { productId, quantity } = req.body;
-    const userId = req.user.userId; // <-- must match JWT payload
+    const userId = req.user.userId; 
 
     if (!userId) return res.status(400).json({ message: "User ID missing" });
     if (!productId || !quantity) {

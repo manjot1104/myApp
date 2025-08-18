@@ -6,10 +6,9 @@ const path = require("path");
 const fs = require("fs");
 const csv = require("csv-parser");
 
-const auth = require("../middleware/auth"); // JWT verify
-const Product = require("../models/product"); // Product model
+const auth = require("../middleware/auth"); 
+const Product = require("../models/product"); 
 
-// ====== Multer Config ======
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, "../uploads");

@@ -13,7 +13,7 @@ import axios from "axios";
 import { useNavigation } from "@react-navigation/native";
 
 const OtpVerificationScreen = ({ route }) => {
-  const { email } = route.params; // pass email from RegisterScreen after successful registration
+  const { email } = route.params;
   const [otp, setOtp] = useState("");
   const navigation = useNavigation();
 

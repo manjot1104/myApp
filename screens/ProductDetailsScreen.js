@@ -1,4 +1,3 @@
-// screens/retailer/ProductDetailsScreen.js
 import React, { useState } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
