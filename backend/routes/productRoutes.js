@@ -22,7 +22,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ====== Add Product ======
-router.post("/", auth, upload.single("image"), async (req, res) => {
+router.post("/add", auth, upload.single("image"), async (req, res) => {
   try {
     if (req.user.role !== "wholesaler") {
       return res.status(403).json({ message: "Only wholesalers can add products" });
@@ -34,7 +34,7 @@ router.post("/", auth, upload.single("image"), async (req, res) => {
       price: req.body.price,
       description: req.body.description,
       stock_qty: req.body.stock_qty,
-      wholesaler_id: req.user.userId, // ✅ token se
+      wholesaler_id: req.user.userId, // token se
       image_url: req.file ? `/uploads/${req.file.filename}` : null
     };
 
@@ -99,13 +99,13 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 // Check low stock
-router.get("/", auth, async (req, res) => {
+router.get("/low-stock", auth, async (req, res) => {
   try {
     const products = await Product.find();
 
     const updatedProducts = products.map(p => ({
       ...p._doc,
-      lowStock: p.stock < 5
+      lowStock: p.stock_qty < 5
     }));
 
     res.json(updatedProducts);
@@ -113,6 +113,49 @@ router.get("/", auth, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+// ====== Bulk Upload Products ======
+router.post("/bulk-upload", auth, upload.single("file"), async (req, res) => {
+  try {
+    if (req.user.role !== "wholesaler") {
+      return res.status(403).json({ message: "Only wholesalers can bulk upload" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const products = [];
+    const filePath = path.join(__dirname, "../uploads", req.file.filename);
+
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on("data", (row) => {
+        products.push({
+          name: row.name,
+          sku: row.sku,
+          price: row.price,
+          description: row.description,
+          stock_qty: row.stock_qty,
+          wholesaler_id: req.user.userId,
+          image_url: row.image_url || null, // agar CSV me diya ho
+        });
+      })
+      .on("end", async () => {
+        try {
+          const inserted = await Product.insertMany(products);
+          res.status(201).json({ message: "Products uploaded", count: inserted.length });
+        } catch (err) {
+          console.error(err);
+          res.status(500).json({ message: "Failed to save products" });
+        }
+      });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 
 
 module.exports = router;

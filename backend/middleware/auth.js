@@ -12,6 +12,8 @@ module.exports = function (req, res, next) {
       return res.status(401).json({ message: "Token is missing" });
     }
 
+    
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded; // attach user info to request
     next();

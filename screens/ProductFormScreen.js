@@ -84,7 +84,7 @@ export default function ProductFormScreen({ route, navigation }) {
       // URL & method
       const url = product?._id
         ? `http://10.0.2.2:8000/products/${product._id}`
-        : "http://10.0.2.2:8000/products";
+        : "http://10.0.2.2:8000/products/add";
       const method = product?._id ? "put" : "post";
 
       // Axios request with proper headers

@@ -1,13 +1,19 @@
-require('dotenv').config();
+require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
-const bcrypt = require('bcrypt');
+const { Server } = require("socket.io");
+const { createServer } = require("http");
 const path = require("path");
+const ChatRoom = require("./models/Chat");
+const bcrypt = require("bcryptjs"); 
+const {createClient} = require("redis");
+
 const productRoutes = require("./routes/productRoutes");
-const cartRoutes = require("./routes/cart")
-const orderRoutes = require("./routes/order")
+const cartRoutes = require("./routes/cart");
+const orderRoutes = require("./routes/order");
+const chatRoutes = require("./routes/chat");
 
 const app = express();
 const port = 8000;
@@ -25,10 +31,106 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/chat", chatRoutes);
 
+const server = createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
+
+
+// ---------------- Redis Setup ----------------
+const pub = createClient({ url: "redis://127.0.0.1:6379" });
+const sub = pub.duplicate();
+
+async function connectRedis() {
+  try {
+    await pub.connect();
+    await sub.connect();
+    console.log(" Connected to Redis");
+
+    // Subscribe to channel
+    await sub.subscribe("chat_channel", (message) => {
+      const msg = JSON.parse(message);
+      io.to(msg.roomId).emit("newChatMessage", msg);
+    });
+  } catch (err) {
+    console.error(" Redis connection error:", err);
+  }
+}
+connectRedis();
+
+// Socket.io connection
+io.on("connection", (socket) => {
+  console.log(" New client connected:", socket.id);
+
+  // Retailer creates a chat room
+  socket.on("createRoom", async ({ retailerId, wholesalerId }) => {
+    let room = await ChatRoom.findOne({ retailerId, wholesalerId });
+
+    if (!room) {
+      room = await ChatRoom.create({ retailerId, wholesalerId, messages: [] });
+    }
+
+    socket.join(room._id.toString());
+    socket.emit("roomCreated", room);
+  });
+
+  // Wholesaler joins retailer’s room
+  socket.on("joinRoom", async ({ retailerId, wholesalerId }) => {
+    let room = await ChatRoom.findOne({ retailerId, wholesalerId });
+
+    if (!room) {
+      return socket.emit("error", "Room not found");
+    }
+
+    socket.join(room._id.toString());
+    socket.emit("roomJoined", room);
+
+    // Send old messages (history)
+    socket.emit("chatHistory", room.messages);
+  });
+
+  // Send + Save message
+  socket.on(
+    "sendMessage",
+    async ({ retailerId, wholesalerId, senderId, text }) => {
+      let room = await ChatRoom.findOne({ retailerId, wholesalerId });
+      if (!room) return;
+
+      const msg = {
+        roomId: room._id.toString(), 
+        senderId,
+        text,
+        createdAt: new Date(),
+      };
+      room.messages.push(msg);
+      await room.save();
+
+      // Publish to Redis channel
+      pub.publish("chat_channel", JSON.stringify(msg));
+
+      //io.to(room._id.toString()).emit("newChatMessage", msg);
+    }
+  );
+
+  socket.on("disconnect", () => {
+    console.log("Client disconnected:", socket.id);
+  });
+});
+
+// ---------------- Test Publish ----------------
+setTimeout(async () => {
+  await pub.publish(
+    "chat_channel",
+    JSON.stringify({
+      roomId: "testRoom",
+      senderId: "system",
+      text: "🚀 Redis PubSub Test",
+    })
+  );
+}, 3000);
 
 const jwt = require("jsonwebtoken");
-app.listen(port, () => {
+server.listen(port, () => {
   console.log("Server is running on port 8000");
 });
 
@@ -37,7 +139,7 @@ mongoose
     useNewUrlParser: true,
     useUnifiedTopology: true,
     ssl: true,
-    tlsAllowInvalidCertificates: false
+    tlsAllowInvalidCertificates: false,
   })
   .then(() => {
     console.log("Connected to MongoDB");
@@ -46,12 +148,14 @@ mongoose
     console.log("Error connecting to MongoDb", err);
   });
 
-  const User = require("./models/user");
+  
 
-  const generateOTP = () => {
+const User = require("./models/user");
+
+const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
-  const sendOtpEmail = async (email, otp) => {
+const sendOtpEmail = async (email, otp) => {
   // Create a Nodemailer transporter
   const transporter = nodemailer.createTransport({
     // Configure the email service or SMTP details here
@@ -129,11 +233,14 @@ app.post("/verify-otp", async (req, res) => {
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (user.verified) return res.status(400).json({ message: "User already verified" });
+    if (user.verified)
+      return res.status(400).json({ message: "User already verified" });
 
-    if (user.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
+    if (user.otp !== otp)
+      return res.status(400).json({ message: "Invalid OTP" });
 
-    if (user.otpExpires < Date.now()) return res.status(400).json({ message: "OTP expired" });
+    if (user.otpExpires < Date.now())
+      return res.status(400).json({ message: "OTP expired" });
 
     user.verified = true;
     user.otp = undefined;
@@ -147,7 +254,6 @@ app.post("/verify-otp", async (req, res) => {
       message: "OTP verified successfully",
       role: user.role,
     });
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "OTP verification failed" });
@@ -157,17 +263,24 @@ app.post("/verify-otp", async (req, res) => {
 const secretKey = process.env.JWT_SECRET;
 
 //endpoint to login the user!
-app.post('/login', async (req, res) => {
+app.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
+  if (!email || !password)
+    return res.status(400).json({ message: "Email and password required" });
 
   const user = await User.findOne({ email });
-  if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+  if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
   const isMatch = await bcrypt.compare(password, user.password_hash);
-  if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
+  if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });
 
-  const token = jwt.sign({ userId: user._id, role: user.role }, secretKey, { expiresIn: '7d' });
-  res.json({ token, userId: user._id, role: user.role, message: 'Login successful' });
+  const token = jwt.sign({ userId: user._id, role: user.role }, secretKey, {
+    expiresIn: "7d",
+  });
+  res.json({
+    token,
+    userId: user._id,
+    role: user.role,
+    message: "Login successful",
+  });
 });
-

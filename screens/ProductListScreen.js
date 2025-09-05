@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, FlatList, Image, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import axios from "axios";
@@ -44,6 +45,8 @@ export default function ProductListScreen({ navigation }) {
         text: "Delete",
         onPress: async () => {
           try {
+            console.log("Trying to delete:", id);
+
             await axios.delete(`http://10.0.2.2:8000/products/${id}`, {
               headers: { Authorization: `Bearer ${token}` },
             });
@@ -59,32 +62,46 @@ export default function ProductListScreen({ navigation }) {
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      {item.image_url ? (
-        <Image source={{ uri: `http://10.0.2.2:8000${item.image_url}` }} style={styles.image} />
-      ) : (
-        <View style={styles.placeholder}>
-          <Text>No Image</Text>
-        </View>
-      )}
-      <Text style={styles.name}>{item.name}</Text>
-      <Text>SKU: {item.sku}</Text>
-      <Text>₹{item.price}</Text>
-      <Text>Stock: {item.stock_qty}</Text>
-      {item.stock_qty <= 5 && <Text style={{ color: "red", fontWeight: "bold" }}>⚠ Low Stock</Text>}
-      <View style={styles.actions}>
-        <TouchableOpacity onPress={() => navigation.navigate("ProductForm", { product: item })}>
-          <Text style={styles.edit}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => deleteProduct(item._id)}>
-          <Text style={styles.delete}>Delete</Text>
-        </TouchableOpacity>
+  <View style={styles.card}>
+    {item.image_url ? (
+      <Image
+        source={{ uri: `http://10.0.2.2:8000${item.image_url}` }}
+        style={styles.image}
+      />
+    ) : (
+      <View style={styles.placeholder}>
+        <Text>No Image</Text>
       </View>
+    )}
+    <Text style={styles.name}>{item.name}</Text>
+    <Text>SKU: {item.sku}</Text>
+    <Text>₹{item.price}</Text>
+    <Text>Stock: {item.stock_qty}</Text>
+    {item.stock_qty <= 5 && (
+      <Text style={{ color: "red", fontWeight: "bold" }}>⚠ Low Stock</Text>
+    )}
+    <View style={styles.actions}>
+      <TouchableOpacity
+        onPress={() => navigation.navigate("ProductForm", { product: item })}
+      >
+        <Text style={styles.edit}>Edit</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => deleteProduct(item._id)}>
+        <Text style={styles.delete}>Delete</Text>
+      </TouchableOpacity>
     </View>
-  );
+  </View>
+);
+
 
   return (
     <View style={styles.container}>
+       <TouchableOpacity 
+    style={styles.bulkButton}
+    onPress={() => navigation.navigate("BulkUpload")}
+  >
+    <Text style={{ color: "#fff" }}>Bulk Upload</Text>
+  </TouchableOpacity>
       <FlatList
         data={products}
         keyExtractor={(item) => item._id}
@@ -106,6 +123,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 5,
   },
+  bulkButton: {
+  backgroundColor: "blue",
+  padding: 12,
+  borderRadius: 8,
+  alignItems: "center",
+  marginBottom: 15,
+},
   name: { fontWeight: "bold", fontSize: 16 },
   actions: { flexDirection: "row", marginTop: 5 },
   edit: { color: "blue", marginRight: 10 },

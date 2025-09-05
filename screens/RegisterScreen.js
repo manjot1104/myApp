@@ -234,7 +234,7 @@ const [role, setRole] = useState("");
           </View>
         </View>
 
-        <View style={{ marginTop: 60 }} />
+        <View style={{ marginTop: 40 }} />
 
         <Pressable
           onPress={handleRegister}
@@ -262,7 +262,7 @@ const [role, setRole] = useState("");
 
         <Pressable
           onPress={() => navigation.goBack()}
-          style={{ marginTop: 15 }}
+          style={{ marginTop: 10 }}
         >
           <Text style={{  textAlign: "center", color: "gray", fontSize: 16 }}>
             Already have an account? Sign In

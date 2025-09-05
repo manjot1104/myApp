@@ -23,11 +23,13 @@
     "android": {
       "package": "com.manjot1104.myapp"
     },
-    "owner": "manjot1104",
     "extra": {
       "eas": {
         "projectId": "6ea8f1ca-35f8-40ea-8d76-5045dada6017"
       }
-    }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
   }
 }

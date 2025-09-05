@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
   },
   company_name: { type: String },
   password_hash: { type: String, required: true },
+   publicKey: { type: String, default: null }, // base64 Curve25519 (tweetnacl)}
   otp: String,
   otpExpires: Date,
   verified: { type: Boolean, default: false },

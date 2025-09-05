@@ -7,45 +7,47 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
-  Alert,
+  Switch,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import { useTheme } from "../theme/ThemeContext";
 
 export default function HomeScreen({ navigation }) {
-  // Logout function
-  const handleLogout = async () => {
-    await AsyncStorage.removeItem("authToken");
-    await AsyncStorage.removeItem("userRole");
-    await AsyncStorage.removeItem("userId");
+  const { mode, toggleTheme } = useTheme();
 
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Login" }],
-    });
-  };
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
   const [token, setToken] = useState("");
+  const [retailerId, setRetailerId] = useState(""); // ✅ new
 
   useEffect(() => {
-    const getTokenAndFetch = async () => {
+  const init = async () => {
+    try {
+      // 1. Load retailerId
+      const id = await AsyncStorage.getItem("retailerId");
+      if (id) setRetailerId(id);
+
+      // 2. Load authToken
       const authToken = await AsyncStorage.getItem("authToken");
       if (authToken) {
         setToken(authToken);
+
+        // Fetch products initially
         fetchProducts(authToken);
 
-        // Polling every 5 sec
-        const interval = setInterval(() => {
-          fetchProducts(authToken);
-        }, 5000);
+        // 3. Auto refresh every 5s
+        const interval = setInterval(() => fetchProducts(authToken), 5000);
 
         return () => clearInterval(interval);
       }
-    };
-    getTokenAndFetch();
-  }, []);
+    } catch (error) {
+      console.error("Error in init:", error);
+    }
+  };
+
+  init();
+}, []);
 
 
   const fetchProducts = async (authToken) => {
@@ -54,8 +56,6 @@ export default function HomeScreen({ navigation }) {
     });
     setProducts(res.data);
   };
-  
-
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -63,8 +63,20 @@ export default function HomeScreen({ navigation }) {
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      style={styles.card}
-      onPress={() => navigation.navigate("ProductDetails", { product: item })}
+      style={[
+        styles.card,
+        {
+          backgroundColor: mode === "light" ? "#fff" : "#1e1e1e",
+          borderColor: mode === "light" ? "#ccc" : "#333",
+        },
+      ]}
+      onPress={() =>
+        navigation.navigate("ProductDetails", {
+          product: item,
+          retailerId: retailerId, // ✅ pass retailerId
+          
+        })
+      }
     >
       {item.image_url ? (
         <Image
@@ -72,111 +84,114 @@ export default function HomeScreen({ navigation }) {
           style={styles.image}
         />
       ) : (
-        <View style={styles.placeholder}>
-          <Text>No Image</Text>
+        <View
+          style={[
+            styles.placeholder,
+            { backgroundColor: mode === "light" ? "#eee" : "#333" },
+          ]}
+        >
+          <Text style={{ color: mode === "light" ? "#000" : "#fff" }}>
+            No Image
+          </Text>
         </View>
       )}
-      <Text style={styles.name}>{item.name}</Text>
-      <Text>₹{item.price}</Text>
-      <Text>Stock: {item.stock_qty}</Text>
+      <Text
+        style={[styles.name, { color: mode === "light" ? "#000" : "#fff" }]}
+      >
+        {item.name}
+      </Text>
+      <Text style={{ color: mode === "light" ? "#000" : "#fff" }}>
+        ₹{item.price}
+      </Text>
+      <Text style={{ color: mode === "light" ? "#000" : "#fff" }}>
+        Stock: {item.stock_qty}
+      </Text>
     </TouchableOpacity>
   );
 
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem("authToken");
+    await AsyncStorage.removeItem("userRole");
+    await AsyncStorage.removeItem("userId");
+
+    navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+  };
+
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: mode === "light" ? "#fff" : "#121212" },
+      ]}
+    >
+      {/* Toggle Button */}
+      <View style={styles.toggleContainer}>
+        <Text
+          style={{ color: mode === "light" ? "#000" : "#fff", marginRight: 10 }}
+        >
+          {mode === "light" ? "Light Mode" : "Dark Mode"}
+        </Text>
+        <Switch value={mode === "dark"} onValueChange={toggleTheme} />
+      </View>
+
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.historyButton}
-        onPress={() => navigation.navigate("OrderHistory")}
-      >
-        <Text style={styles.historyButtonText}>View Order History</Text>
-      </TouchableOpacity>
-      
+
       <TextInput
         placeholder="Search Products"
+        placeholderTextColor={mode === "light" ? "#888" : "#ccc"}
         value={search}
         onChangeText={setSearch}
-        style={styles.searchInput}
+        style={[
+          styles.searchInput,
+          {
+            backgroundColor: mode === "light" ? "#fff" : "#333",
+            color: mode === "light" ? "#000" : "#fff",
+            borderColor: mode === "light" ? "#ccc" : "#555",
+          },
+        ]}
       />
+
       <FlatList
         data={filteredProducts}
         keyExtractor={(item) => item._id}
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
-      <TouchableOpacity
-        style={styles.cartButton}
-        onPress={() => navigation.navigate("Cart")}
-      >
-        <Text style={{ color: "#fff" }}>🛒 Go to Cart</Text>
-      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: "#fff" },
+  container: { flex: 1, padding: 10 },
+  toggleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 10,
+  },
   searchInput: {
     borderWidth: 1,
-    borderColor: "#ccc",
     borderRadius: 5,
     padding: 10,
     marginBottom: 10,
     marginTop: 10,
   },
-  categories: { flexDirection: "row", marginBottom: 10, flexWrap: "wrap" },
-  categoryBtn: {
-    padding: 8,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    marginRight: 5,
-    marginBottom: 5,
-  },
-  categoryActive: { backgroundColor: "blue", borderColor: "blue" },
-  card: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 10,
-  },
+  card: { borderWidth: 1, borderRadius: 5, padding: 10, marginBottom: 10 },
   image: { width: "100%", height: 150, marginBottom: 5 },
   placeholder: {
     width: "100%",
     height: 150,
-    backgroundColor: "#eee",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 5,
   },
   name: { fontWeight: "bold", fontSize: 16 },
-  cartButton: {
-    backgroundColor: "green",
-    padding: 15,
-    borderRadius: 5,
-    alignItems: "center",
-  },
-  historyButton: {
-    backgroundColor: "green",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  historyButtonText: { color: "#fff", fontWeight: "bold", textAlign: "center" },
   logoutBtn: {
     backgroundColor: "red",
     padding: 10,
     borderRadius: 8,
     alignSelf: "flex-end",
-    marginBottom: 20,
-    marginTop:60,
   },
-  logoutText: {
-    color: "white",
-    fontWeight: "bold",
-  }
+  logoutText: { color: "white", fontWeight: "bold" },
 });
