@@ -16,7 +16,7 @@ const orderRoutes = require("./routes/order");
 const chatRoutes = require("./routes/chat");
 
 const app = express();
-const port = 8000;
+const port = process.env.PORT || 8000;
 const cors = require("cors");
 app.use(cors());
 
@@ -38,7 +38,7 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 
 // ---------------- Redis Setup ----------------
-const pub = createClient({ url: "redis://127.0.0.1:6379" });
+const pub = createClient({ url: process.env.REDIS_URL });
 const sub = pub.duplicate();
 
 async function connectRedis() {
@@ -124,7 +124,7 @@ setTimeout(async () => {
     JSON.stringify({
       roomId: "testRoom",
       senderId: "system",
-      text: "🚀 Redis PubSub Test",
+      text: "Redis PubSub Test",
     })
   );
 }, 3000);
@@ -135,7 +135,7 @@ server.listen(port, () => {
 });
 
 mongoose
-  .connect("mongodb+srv://manjot1104:waheguru1@cluster0.bhn9dvf.mongodb.net/", {
+  .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
     ssl: true,
@@ -161,14 +161,14 @@ const sendOtpEmail = async (email, otp) => {
     // Configure the email service or SMTP details here
     service: "gmail",
     auth: {
-      user: "manjot1104@gmail.com",
-      pass: "uxyirlzqcebunkht",
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
   });
 
   // Compose the email message
   const mailOptions = {
-    from: "manjot1104@gmail.com",
+    from: process.env.EMAIL_USER,
     to: email,
     subject: "Your OTP Code",
     text: `Your OTP code is: ${otp} . It will expire in 10 minutes`,
